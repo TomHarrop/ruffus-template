@@ -41,29 +41,39 @@ def main():
     # initialise pipeline
     main_pipeline = ruffus.Pipeline.pipelines["main"]
 
-    # test functions module
-#    functions.touch('ruffus/yes.txt')
-
     # test generator function
-    test_files = ['ruffus/foo.txt', 'ruffus/bar.txt']
-    test = main_pipeline.originate(
-        name="test",
+    test_originate_files = ['ruffus/foo.txt', 'ruffus/bar.txt']
+    test_originate = main_pipeline.originate(
+        name='test_originate',
         task_func=functions.generate_job_function(
-            job_script='src/test.sh', job_name='test_pl',
-            job_type='originate',
-            output_files=test_files),
-        output=test_files)
+            job_script='src/test_originate',
+            job_name='test_originate',
+            job_type='originate'),
+        output=test_originate_files)
+    print(test_originate)
 
-    transformed_test_files = ['ruffus/foo2.txt', 'ruffus/bar2.txt']
-    test2 = main_pipeline.transform(
-        name="test2",
+    test_transform = main_pipeline.transform(
+        name="test_transform",
         task_func=functions.generate_job_function(
-            job_script='src/test.sh', job_name='test_pl',
-            job_type='transform', input_files=True,
-            output_files=transformed_test_files),
-        input=test,
-        filter=ruffus.formatter(),
-        output=transformed_test_files)
+            job_script='src/test_transform',
+            job_name='test_transform',
+            job_type='transform'),
+        input=test_originate,
+        filter=ruffus.suffix(".txt"),
+        output=["_transformed.txt", "_transformed.bam"])
+    print(test_transform)
+    print(ruffus.output_from(test_transform))
+
+    test_merge = main_pipeline.merge(
+        name='test_merge',
+        task_func=functions.generate_job_function(
+            job_script='src/test_merge',
+            job_name='test_merge',
+            job_type='merge'),
+        input=test_transform,
+        output='ruffus/foobar_merge.txt'
+        )
+    print(test_merge)
 
     ###################
     # RUFFUS COMMANDS #

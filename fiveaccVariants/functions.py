@@ -6,6 +6,18 @@ import re
 import os
 import datetime
 
+#############
+# UTILITIES #
+#############
+
+def flatten_list(l):
+    for x in l:
+        if hasattr(x, '__iter__') and not isinstance(x, str):
+            for y in flatten_list(x):
+                yield y
+        else:
+            yield x
+
 ############################
 # JOB SUBMISSION FUNCTIONS #
 ############################
@@ -18,9 +30,12 @@ def submit_job(job_script, ntasks, cpus_per_task, job_name, extras=[]):
     output to file.
     '''
     # call salloc as subprocess
+    print(['salloc', '--ntasks=' + ntasks, '--cpus-per-task=' + cpus_per_task,
+           '--job-name=' + job_name, job_script] + list(extras))
     proc = subprocess.Popen(['salloc', '--ntasks=' + ntasks,
                              '--cpus-per-task=' + cpus_per_task,
-                             '--job-name=' + job_name, job_script] + extras,
+                             '--job-name=' + job_name, job_script] +
+                            list(extras),
                             stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE)
     # get stdout and stderr
@@ -71,53 +86,101 @@ def touch(fname, mode=0o666, dir_fd=None, **kwargs):
 
 def generate_job_function(
         job_script, job_name, job_type='transform', ntasks=1,
-        cpus_per_task=1, input_files=False, output_files=False,
-        jgi_logon=False, jgi_password=False):
+        cpus_per_task=1, extras=False):
 
     '''Generate a function for a pipeline job step'''
+
+    # job_type determines the number of arguments accepted by the returned
+    # function. Ruffus 'transform' and 'merge' functions should  expect two
+    # positional arguments, because Ruffus will pass input_files  and
+    # output_files positionally. 'originate' functions should expect
+    # output_files only as a positional argument. Additional arguments for the
+    # 'extra' parameter will be passed as a list from Ruffus.
 
     # check job_type
     _allowed_job_types = ['transform', 'merge', 'originate', 'download']
     if job_type not in _allowed_job_types:
-        raise ValueError('{job_type} not allowed')
+        raise ValueError('{job_type} not an allowed job_type')
 
-    # check that we got the right arguments
-    if ((job_type == 'transform' or job_type == 'merge') and
-            (not input_files or not output_files)):
-        raise ValueError(
-            'input_files and output_files required for {job_type}')
-    if ((job_type == 'originate' or job_type == 'download') and input_files):
-        raise ValueError(
-            '''don't know how to use input_files for {job_type}''')
-    if job_type == 'download' and (not jgi_logon or not jgi_password):
-        raise ValueError(
-            'jgi_logon and jgi_password required for {job_type}')
-
-    # set up the args we want to accept
-    kwargs = {'input_files': input_files, 'output_files': output_files,
-              'jgi_logon': jgi_logon, 'jgi_password': jgi_logon}
-
-    # set up a dict of arguments
-    blank_args = []
-    # which args were blank
-    for key in kwargs:
-        if not kwargs[key]:
-            blank_args.append(key)
-    # remove blank args
-    for key in blank_args:
-        del(kwargs[key])
+    # set up the args
+    function_args = []
+    # if we expect input_files, they go first
+    if job_type in ['transform', 'merge']:
+        function_args.append('input_files')
+    # all job_types have output_files
+    function_args.append('output_files')
+    # download jobs have logon details
+    if job_type == 'download':
+        function_args.append('jgi_logon', 'jgi_password')
+    # extras go at the end
+    if extras:
+        function_args.append('extras')
 
     # define the function
-    def job_function(**kwargs):
-        for arg in kwargs:
-            print(arg)
-        if not job_type == 'download':
-            job_id = submit_job(
-                job_script, ntasks, cpus_per_task, job_name)
+    def job_function(*function_args):
+        # standardise submit_args and handle
+        # them in bash. provide arguments to submit_job extras argument in the
+        # following order:
+        # -i: input_files
+        # -o: output_files
+        # -e: jgi_logon (email)
+        # -p: jgi_password
+        # extra arguments passed verbatim from Ruffus
+
+        print("function_args: ", function_args)
+        function_args_list = list(function_args)
+        print("function_args_list: ", function_args_list)
+
+        submit_args = []
+
+        # if we expect input_files, they go first
+        if job_type in ['transform', 'merge']:
+            input_files = [function_args_list.pop(0)]
+            input_files_flat = list(flatten_list(input_files))
+            print("input_files_flat:", input_files_flat)
+            x = ['-i'] * len(input_files_flat)
+            new_args = [x for t in
+                        zip(x, input_files_flat)
+                        for x in t]
+            print("new_args: ", new_args)
+            submit_args.append(new_args)
+        # all job_types have output_files
+        output_files = [function_args_list.pop(0)]
+        output_files_flat = list(flatten_list(output_files))
+        print("output_files_flat:", output_files_flat)
+        x = ['-o'] * len(output_files_flat)
+        new_args = [x for t in
+                    zip(x, output_files_flat)
+                    for x in t]
+        print("new_args: ", new_args)
+        submit_args.append(new_args)
+        # if we have logon details they go here
         if job_type == 'download':
-            job_id = submit_job(
-                job_script, ntasks, cpus_per_task, job_name,
-                extras=['-e', jgi_logon, '-p', jgi_password])
+            submit_args.append(
+                '-e', function_args_list.pop(0),
+                '-p', function_args_list.pop(0))
+        # extras go at the end
+        if extras:
+            submit_args.append(function_args_list.pop(0))
+
+        # did we use everything?
+        print("submit_args: ", submit_args)
+        print("end_fal: ", function_args_list)
+        if len(function_args_list) > 0:
+            raise ValueError('unused function_args_list')
+
+        # flatten the list
+        submit_args_flat = list(flatten_list(submit_args))
+        print("submit_args_flat: ", submit_args_flat)
+
+        # submit the job. n.b. the job script has to handle the extras
+        # properly!!! TEST.
+        job_id = submit_job(
+            job_script=job_script,
+            ntasks=str(ntasks),
+            cpus_per_task=str(cpus_per_task),
+            job_name=job_name,
+            extras=list(submit_args_flat))
         job_id = print_job_submission(job_name, job_id)
 
     return job_function

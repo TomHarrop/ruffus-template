@@ -127,9 +127,9 @@ def generate_job_function(
         # -p: jgi_password
         # extra arguments passed verbatim from Ruffus
 
-        print("function_args: ", function_args)
+        print("\nfunction_args: ", function_args)
         function_args_list = list(function_args)
-        print("function_args_list: ", function_args_list)
+        print("\nfunction_args_list: ", function_args_list)
 
         submit_args = []
 
@@ -137,22 +137,22 @@ def generate_job_function(
         if job_type in ['transform', 'merge']:
             input_files = [function_args_list.pop(0)]
             input_files_flat = list(flatten_list(input_files))
-            print("input_files_flat:", input_files_flat)
+            print("\ninput_files_flat:", input_files_flat)
             x = ['-i'] * len(input_files_flat)
             new_args = [x for t in
                         zip(x, input_files_flat)
                         for x in t]
-            print("new_args: ", new_args)
+            print("\nnew_args: ", new_args)
             submit_args.append(new_args)
         # all job_types have output_files
         output_files = [function_args_list.pop(0)]
         output_files_flat = list(flatten_list(output_files))
-        print("output_files_flat:", output_files_flat)
+        print("\noutput_files_flat:", output_files_flat)
         x = ['-o'] * len(output_files_flat)
         new_args = [x for t in
                     zip(x, output_files_flat)
                     for x in t]
-        print("new_args: ", new_args)
+        print("\nnew_args: ", new_args)
         submit_args.append(new_args)
         # if we have logon details they go here
         if job_type == 'download':
@@ -164,14 +164,14 @@ def generate_job_function(
             submit_args.append(function_args_list.pop(0))
 
         # did we use everything?
-        print("submit_args: ", submit_args)
+        print("\nsubmit_args: ", submit_args)
         print("end_fal: ", function_args_list)
         if len(function_args_list) > 0:
             raise ValueError('unused function_args_list')
 
         # flatten the list
         submit_args_flat = list(flatten_list(submit_args))
-        print("submit_args_flat: ", submit_args_flat)
+        print("\nsubmit_args_flat: ", submit_args_flat)
 
         # submit the job. n.b. the job script has to handle the extras
         # properly!!! TEST.

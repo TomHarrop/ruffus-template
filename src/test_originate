@@ -22,4 +22,6 @@ done
 shift "$((OPTIND-1))"
 # non-option arguments start at $1..${n}
 
+source "src/test_header"
+
 printf "%s" "$output_files" > "$output_files"

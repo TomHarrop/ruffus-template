@@ -30,6 +30,8 @@ done
 shift "$((OPTIND-1))"
 # non-option arguments start at $1..${n}
 
+source "src/test_header"
+
 if [[ "${#output_files[@]}" -gt 1 ]]; then
     for x in "${output_files[@]}"; do
         cp "${input_files[0]}" "$x"

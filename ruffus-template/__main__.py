@@ -104,9 +104,9 @@ def main():
     ###################
 
     # print the flowchart
-    ruffus.pipeline_printout_graph("ruffus/flowchart.pdf", "pdf",
-                                   pipeline_name="5 accessions analysis "
-                                                 "pipeline")
+    ruffus.pipeline_printout_graph(
+        "ruffus/flowchart.pdf", "pdf",
+        pipeline_name="Ruffus proforma pipeline")
 
     # run the pipeline
     ruffus.cmdline.run(options, multithread=8)

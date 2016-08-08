@@ -2,9 +2,9 @@
 # -*- coding: utf-8 -*-
 #
 
-#########################################
-# 5 accessions variant-calling pipeline #
-#########################################
+############################
+# Proforma ruffus pipeline #
+############################
 
 import functions
 import ruffus
@@ -80,7 +80,6 @@ def main():
         replace_inputs=ruffus.inputs(r"\1.bam"),
         filter=ruffus.suffix(".txt"),
         output=".bof")
-
 
     test_merge = main_pipeline.merge(
         name='test_merge',

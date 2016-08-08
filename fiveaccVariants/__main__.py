@@ -50,7 +50,7 @@ def main():
             job_name='test_originate',
             job_type='originate'),
         output=test_originate_files)
-    print(test_originate)
+    print("\n\ntest_originate\n", test_originate)
 
     test_transform = main_pipeline.transform(
         name="test_transform",
@@ -61,8 +61,26 @@ def main():
         input=test_originate,
         filter=ruffus.suffix(".txt"),
         output=["_transformed.txt", "_transformed.bam"])
-    print(test_transform)
-    print(ruffus.output_from(test_transform))
+    print("\n\ntest_transform\n", test_transform)
+    print("\n\ntransform output\n", ruffus.output_from(test_transform))
+
+    # Transform ONLY the bam files produced by test_transform
+
+    # The filtering here is a bit crazy. `input` has to be an object, not
+    # ruffus.output_from(). `replace_inputs` should use `ruffus.inputs()` to
+    # match the files, but `filter` has to match the first file produced by
+    # the previous step, NOT necessarily the file that will be transformed!
+    test_selective_transform = main_pipeline.transform(
+        name="test_selective_transform",
+        task_func=functions.generate_job_function(
+            job_script='src/test_selective_transform',
+            job_name='test_selective_transform',
+            job_type='transform'),
+        input=test_transform,
+        replace_inputs=ruffus.inputs(r"\1.bam"),
+        filter=ruffus.suffix(".txt"),
+        output=".bof")
+
 
     test_merge = main_pipeline.merge(
         name='test_merge',
@@ -73,7 +91,7 @@ def main():
         input=test_transform,
         output='ruffus/foobar_merge.txt'
         )
-    print(test_merge)
+    print("\n\ntest_merge\n", test_merge)
 
     ###################
     # RUFFUS COMMANDS #

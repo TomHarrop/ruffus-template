@@ -10,6 +10,7 @@ import datetime
 # UTILITIES #
 #############
 
+
 def flatten_list(l):
     for x in l:
         if hasattr(x, '__iter__') and not isinstance(x, str):
@@ -94,8 +95,9 @@ def generate_job_function(
     # function. Ruffus 'transform' and 'merge' functions should  expect two
     # positional arguments, because Ruffus will pass input_files  and
     # output_files positionally. 'originate' functions should expect
-    # output_files only as a positional argument. Additional arguments for the
-    # 'extra' parameter will be passed as a list from Ruffus.
+    # output_files as a positional argument and no input_files. Additional
+    # arguments for the 'extra' parameter will be passed as a list from
+    # Ruffus.
 
     # check job_type
     _allowed_job_types = ['transform', 'merge', 'originate', 'download']
@@ -111,16 +113,18 @@ def generate_job_function(
     function_args.append('output_files')
     # download jobs have logon details
     if job_type == 'download':
-        function_args.append('jgi_logon', 'jgi_password')
+        function_args.append('jgi_logon')
+        function_args.append('jgi_password')
     # extras go at the end
     if extras:
         function_args.append('extras')
 
     # define the function
     def job_function(*function_args):
-        # standardise submit_args and handle
-        # them in bash. provide arguments to submit_job extras argument in the
-        # following order:
+
+        # standardise submit_args and handle them in bash.
+        # provide arguments to submit_job extras argument in the following
+        # order:
         # -i: input_files
         # -o: output_files
         # -e: jgi_logon (email)
@@ -144,6 +148,8 @@ def generate_job_function(
                         for x in t]
             print("\nnew_args: ", new_args)
             submit_args.append(new_args)
+            print("\nsubmit_args: ", submit_args)
+
         # all job_types have output_files
         output_files = [function_args_list.pop(0)]
         output_files_flat = list(flatten_list(output_files))
@@ -154,14 +160,20 @@ def generate_job_function(
                     for x in t]
         print("\nnew_args: ", new_args)
         submit_args.append(new_args)
+        print("\nsubmit_args: ", submit_args)
+
         # if we have logon details they go here
         if job_type == 'download':
-            submit_args.append(
-                '-e', function_args_list.pop(0),
-                '-p', function_args_list.pop(0))
+            submit_args.append('-e')
+            submit_args.append(function_args_list.pop(0))
+            submit_args.append('-p')
+            submit_args.append(function_args_list.pop(0))
+            print("\nsubmit_args: ", submit_args)
+
         # extras go at the end
         if extras:
             submit_args.append(function_args_list.pop(0))
+            print("\nsubmit_args: ", submit_args)
 
         # did we use everything?
         print("\nsubmit_args: ", submit_args)
@@ -174,7 +186,7 @@ def generate_job_function(
         print("\nsubmit_args_flat: ", submit_args_flat)
 
         # submit the job. n.b. the job script has to handle the extras
-        # properly!!! TEST.
+        # properly, probably by parsing ${1}.. ${n} in bash.
         job_id = submit_job(
             job_script=job_script,
             ntasks=str(ntasks),

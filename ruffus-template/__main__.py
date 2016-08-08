@@ -41,7 +41,7 @@ def main():
     # initialise pipeline
     main_pipeline = ruffus.Pipeline.pipelines["main"]
 
-    # test generator function
+    # test originate job
     test_originate_files = ['ruffus/foo.txt', 'ruffus/bar.txt']
     test_originate = main_pipeline.originate(
         name='test_originate',
@@ -50,8 +50,18 @@ def main():
             job_name='test_originate',
             job_type='originate'),
         output=test_originate_files)
-    print("\n\ntest_originate\n", test_originate)
 
+    # test download job
+    test_download = main_pipeline.originate(
+        name='test_download',
+        task_func=functions.generate_job_function(
+            job_script='src/test_download',
+            job_name='test_download',
+            job_type='download'),
+        output='ruffus/download.txt',
+        extras=[jgi_logon, jgi_password])
+
+    # test transform with multiple outputs (e.g. bamfile, FASTA etc)
     test_transform = main_pipeline.transform(
         name="test_transform",
         task_func=functions.generate_job_function(
@@ -61,8 +71,6 @@ def main():
         input=test_originate,
         filter=ruffus.suffix(".txt"),
         output=["_transformed.txt", "_transformed.bam"])
-    print("\n\ntest_transform\n", test_transform)
-    print("\n\ntransform output\n", ruffus.output_from(test_transform))
 
     # Transform ONLY the bam files produced by test_transform
 
@@ -90,7 +98,6 @@ def main():
         input=test_transform,
         output='ruffus/foobar_merge.txt'
         )
-    print("\n\ntest_merge\n", test_merge)
 
     ###################
     # RUFFUS COMMANDS #

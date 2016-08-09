@@ -48,8 +48,7 @@ def main():
         task_func=functions.generate_job_function(
             job_script='src/test_originate',
             job_name='test_originate',
-            job_type='originate',
-            verbose=True),
+            job_type='originate'),
         output=test_originate_files)
 
     # test download job

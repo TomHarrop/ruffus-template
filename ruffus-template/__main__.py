@@ -48,10 +48,13 @@ def main():
         task_func=functions.generate_job_function(
             job_script='src/test_originate',
             job_name='test_originate',
-            job_type='originate'),
+            job_type='originate',
+            verbose=True),
         output=test_originate_files)
 
     # test download job
+    if not (jgi_logon and jgi_password):
+        raise ValueError('Supply jgi_logon and jgi_password')
     test_download = main_pipeline.originate(
         name='test_download',
         task_func=functions.generate_job_function(

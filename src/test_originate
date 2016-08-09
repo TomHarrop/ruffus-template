@@ -6,15 +6,15 @@ output_files=""
 OPTIND=1
 while getopts ":i:o:" opt; do
     case "$opt" in
-        o)  output_files=$OPTARG
-            printf "output_files:   %s\n" "$output_files"
+        o)  output_files="${OPTARG}"
+            printf "output_files:   %s\n" "${output_files}"
             ;;
         :)
-            echo "Option -$OPTARG requires an argument." >&2
+            printf "Option -%s requires an argument.\n" "${OPTARG}" >&2
             exit 1
             ;;
         \?)
-            echo "Invalid option: -$OPTARG" >&2
+            printf "Invalid option: -%s\n" "${OPTARG}" >&2
             exit 1
             ;;
     esac
@@ -24,4 +24,4 @@ shift "$((OPTIND-1))"
 
 source "src/test_header"
 
-printf "%s" "$output_files" > "$output_files"
+printf "%s" "${output_files}" > "${output_files}"

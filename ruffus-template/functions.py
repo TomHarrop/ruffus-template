@@ -19,6 +19,14 @@ def flatten_list(l):
         else:
             yield x
 
+
+# touch function for updating ruffus flag files
+def touch(fname, mode=0o666, dir_fd=None, **kwargs):
+    flags = os.O_CREAT | os.O_APPEND
+    with os.fdopen(os.open(fname, flags=flags, mode=mode, dir_fd=dir_fd)) as f:
+        os.utime(f.fileno() if os.utime in os.supports_fd else fname,
+                 dir_fd=None if os.supports_fd else dir_fd, **kwargs)
+
 ############################
 # JOB SUBMISSION FUNCTIONS #
 ############################
@@ -31,8 +39,6 @@ def submit_job(job_script, ntasks, cpus_per_task, job_name, extras=[]):
     output to file.
     '''
     # call salloc as subprocess
-    print(['salloc', '--ntasks=' + ntasks, '--cpus-per-task=' + cpus_per_task,
-           '--job-name=' + job_name, job_script] + list(extras))
     proc = subprocess.Popen(['salloc', '--ntasks=' + ntasks,
                              '--cpus-per-task=' + cpus_per_task,
                              '--job-name=' + job_name, job_script] +
@@ -72,14 +78,6 @@ def print_job_submission(job_name, job_id):
     now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
     print('[', now, '] : Job ' + job_name + ' run with JobID ' + job_id)
 
-
-# touch function for updating ruffus flag files
-def touch(fname, mode=0o666, dir_fd=None, **kwargs):
-    flags = os.O_CREAT | os.O_APPEND
-    with os.fdopen(os.open(fname, flags=flags, mode=mode, dir_fd=dir_fd)) as f:
-        os.utime(f.fileno() if os.utime in os.supports_fd else fname,
-                 dir_fd=None if os.supports_fd else dir_fd, **kwargs)
-
 ######################
 # FUNCTION GENERATOR #
 ######################
@@ -87,7 +85,7 @@ def touch(fname, mode=0o666, dir_fd=None, **kwargs):
 
 def generate_job_function(
         job_script, job_name, job_type='transform', ntasks=1,
-        cpus_per_task=1, extras=False):
+        cpus_per_task=1, extras=False, verbose=False):
 
     '''Generate a function for a pipeline job step'''
 
@@ -131,36 +129,41 @@ def generate_job_function(
         # -p: jgi_password
         # extra arguments passed verbatim from Ruffus
 
-        print("\nfunction_args: ", function_args)
         function_args_list = list(function_args)
-        print("\nfunction_args_list: ", function_args_list)
-
         submit_args = []
+
+        if verbose:
+            print("\nfunction_args: ", function_args)
+            print("\nfunction_args_list: ", function_args_list)
 
         # if we expect input_files, they go first
         if job_type in ['transform', 'merge']:
             input_files = [function_args_list.pop(0)]
             input_files_flat = list(flatten_list(input_files))
-            print("\ninput_files_flat:", input_files_flat)
-            x = ['-i'] * len(input_files_flat)
+            y = ['-i'] * len(input_files_flat)
             new_args = [x for t in
-                        zip(x, input_files_flat)
+                        zip(y, input_files_flat)
                         for x in t]
-            print("\nnew_args: ", new_args)
             submit_args.append(new_args)
-            print("\nsubmit_args: ", submit_args)
 
-        # all job_types have output_files
+            if verbose:
+                print("\ninput_files_flat:", input_files_flat)
+                print("\nnew_args: ", new_args)
+                print("\nsubmit_args: ", submit_args)
+
+        # output_files required for all job_types
         output_files = [function_args_list.pop(0)]
         output_files_flat = list(flatten_list(output_files))
-        print("\noutput_files_flat:", output_files_flat)
-        x = ['-o'] * len(output_files_flat)
+        y = ['-o'] * len(output_files_flat)
         new_args = [x for t in
-                    zip(x, output_files_flat)
+                    zip(y, output_files_flat)
                     for x in t]
-        print("\nnew_args: ", new_args)
         submit_args.append(new_args)
-        print("\nsubmit_args: ", submit_args)
+
+        if verbose:
+            print("\noutput_files_flat:", output_files_flat)
+            print("\nnew_args: ", new_args)
+            print("\nsubmit_args: ", submit_args)
 
         # if we have logon details they go here
         if job_type == 'download':
@@ -168,22 +171,30 @@ def generate_job_function(
             submit_args.append(function_args_list.pop(0))
             submit_args.append('-p')
             submit_args.append(function_args_list.pop(0))
-            print("\nsubmit_args: ", submit_args)
+
+            if verbose:
+                print("\nsubmit_args: ", submit_args)
 
         # extras go at the end
         if extras:
             submit_args.append(function_args_list.pop(0))
-            print("\nsubmit_args: ", submit_args)
+
+            if verbose:
+                print("\nsubmit_args: ", submit_args)
 
         # did we use everything?
-        print("\nsubmit_args: ", submit_args)
-        print("end_fal: ", function_args_list)
+        if verbose:
+            print("\nsubmit_args: ", submit_args)
+            print("end_fal: ", function_args_list)
+
         if len(function_args_list) > 0:
             raise ValueError('unused function_args_list')
 
         # flatten the list
         submit_args_flat = list(flatten_list(submit_args))
-        print("\nsubmit_args_flat: ", submit_args_flat)
+
+        if verbose:
+            print("\nsubmit_args_flat: ", submit_args_flat)
 
         # submit the job. n.b. the job script has to handle the extras
         # properly, probably by parsing ${1}.. ${n} in bash.
@@ -193,6 +204,6 @@ def generate_job_function(
             cpus_per_task=str(cpus_per_task),
             job_name=job_name,
             extras=list(submit_args_flat))
-        job_id = print_job_submission(job_name, job_id)
+        print_job_submission(job_name, job_id)
 
     return job_function

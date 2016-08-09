@@ -8,21 +8,21 @@ jgi_password=""
 OPTIND=1
 while getopts "o:e:p:" opt; do
     case "$opt" in
-        o)  output_files=$OPTARG
+        o)  output_files="${OPTARG}"
             printf "output_files:   %s\n" "$output_files"
             ;;
-        e)  jgi_login=$OPTARG
+        e)  jgi_login="${OPTARG}"
             printf "jgi_login:      %s\n" "$jgi_login"
             ;;
-        p)  jgi_password=$OPTARG
+        p)  jgi_password="${OPTARG}"
             printf "jgi_password:   %s\n" "$jgi_password"
             ;;
         :)
-            echo "Option -$OPTARG requires an argument." >&2
+            printf "Option -%s requires an argument.\n" "${OPTARG}" >&2
             exit 1
             ;;
         \?)
-            echo "Invalid option: -$OPTARG" >&2
+            printf "Invalid option: -%s\n" "${OPTARG}" >&2
             exit 1
             ;;
     esac
